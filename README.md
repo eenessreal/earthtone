@@ -8,6 +8,18 @@ Built for the **NASA Space Apps Challenge 2026**, challenge *The Earth Informati
 
 ## How it works
 
+First, the whole view is read as one scene and picks a **mood**: its own key, mode, tempo, accompaniment and percussion.
+
+| Scene | Mood |
+|---|---|
+| Mostly ocean | *Ocean*: slow, D Lydian, flute and harp |
+| Mostly vegetation | *Forest*: lively, G major, plucked strings, timpani |
+| Mostly bare land | *Desert*: E Phrygian dominant, darbuka rhythm, flute lead |
+| Mostly cloud or ice | *Ice*: sparse, A Dorian, celesta |
+| Dark (night lights layer) | *Night*: slow, E minor, city lights as bells |
+| Mixed land and sea | *Coast*: C Mixolydian, harp |
+
+Then 
 A playhead sweeps across the current map view from left to right. The view is split into 48 vertical bands, and each band becomes one eighth note.
 
 | Image feature | Musical result |
@@ -18,7 +30,7 @@ A playhead sweeps across the current map view from left to right. The view is sp
 | Surface change (coastline, cloud edge) | Harp strum |
 | Variety and color of the next 8 bands | Arrangement size: strings only → harp, basses, timpani, second violin line |
 
-Underneath, a string section plays a chord progression (I–V–vi–IV in major, i–VI–III–VII in minor). Melody notes on strong beats snap to the current chord, and large jumps are folded back by an octave, so any landscape is heard as a tune rather than noise.
+Underneath, a string section plays the mood's chord progression (for example E–F–E–D in Desert, Dmaj7–E–Dmaj7–A in Ocean). Melody notes on strong beats snap to the current chord, and large jumps are folded back by an octave, so any landscape is heard as a tune rather than noise.
 
 ## NASA data
 
