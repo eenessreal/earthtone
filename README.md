@@ -72,6 +72,17 @@ Underneath, a string section plays the mood's chord progression (for example Eâ€
   - MODIS Terra Corrected Reflectance (True Color), daily, user-selectable date
   - VIIRS Black Marble night lights (2016)
   - Reference labels (for orientation only; not used for sound)
+- **Science data layers** that change the music (shown as a coloured overlay):
+
+| Layer | GIBS product | What it does to the music |
+|---|---|---|
+| Sea surface temperature | GHRSST L4 MUR SST | Warm seas: faster, bright glass shimmer. Cold seas: slower, low choir breath |
+| Land surface temperature | MODIS Terra LST (day) | Heat makes the music faster and brighter |
+| Active fires | VIIRS / MODIS thermal anomalies | Crackles under the playhead, dark brass swell and timpani roll |
+| Rain | IMERG precipitation rate | Rain soundscape, slower tempo, thunder in heavy rain |
+| Vegetation | MODIS NDVI (8-day) | More birdsong where vegetation is denser |
+
+The colour of each data pixel is read back into a value (for temperature, its position on the blue-to-red scale; for fires and rain, how much of each column they cover). Layer names and zoom levels are checked at run time; a product that is not available switches itself off and the music plays without it.
 
 ## Tech
 
