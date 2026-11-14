@@ -54,6 +54,7 @@ button:focus-visible,.file:focus-within,select:focus-visible,input:focus-visible
 .meter #mMood{white-space:normal;font-size:.95rem;line-height:1.25}
 .meter span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 @media (max-width:520px){.meter{grid-template-columns:repeat(2,1fr)}}
+#yearTag{position:absolute;top:10px;left:12px;z-index:650;font:800 2.2rem/1 var(--sans);color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.7);pointer-events:none;font-variant-numeric:tabular-nums}
 #touch{position:absolute;inset:0;z-index:700;touch-action:none;cursor:crosshair;outline:none}
 #touch:focus-visible{box-shadow:inset 0 0 0 3px var(--accent)}
 #dot{position:absolute;left:0;top:0;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.5),0 0 8px rgba(0,0,0,.5);pointer-events:none;will-change:transform}
@@ -87,6 +88,7 @@ button:disabled{opacity:.6;cursor:progress}
     <div id="map" aria-label="NASA satellite map"></div>
     <canvas id="cv" width="960" height="480" hidden aria-label="Uploaded image"></canvas>
     <div id="head"></div>
+    <div id="yearTag" hidden></div>
     <div id="touch" tabindex="0" role="application" aria-label="Explore the image by touch or with the arrow keys" hidden><span id="dot"></span></div>
   </div>
   <p class="src" id="src">Imagery: NASA GIBS / Worldview.</p>
@@ -107,6 +109,7 @@ button:disabled{opacity:.6;cursor:progress}
       <option value="ndvi">Data: vegetation (NDVI)</option>
     </select>
     <button id="tour" aria-pressed="false">World tour</button>
+    <button id="travel" aria-pressed="false">Time travel</button>
     <button id="locate">My location</button>
     <button id="share">Share this place</button>
   </div>
@@ -132,6 +135,8 @@ button:disabled{opacity:.6;cursor:progress}
     <button data-v="53.3,-8,6" data-l="bm">Ireland</button>
     <button data-v="19.4,-99.1,7" data-l="night">Mexico City at night</button>
     <button data-v="47,103,5" data-l="bm">Mongolian steppe</button>
+    <button data-v="45.2,59.8,7" data-l="modis">Aral Sea</button>
+    <button data-v="37.7,45.4,8" data-l="modis">Lake Urmia</button>
   </div>
   <div id="upCtl" class="row" hidden>
     <label class="file">Choose image<input type="file" id="file" accept="image/*"></label>
@@ -179,6 +184,7 @@ button:disabled{opacity:.6;cursor:progress}
       <li><b>Busy landscapes → bigger arrangement.</b> Calm stretches stay quiet with strings only. Colorful, varied stretches bring in harp, basses, timpani and a second violin line.</li>
       <li><b>Coastlines and cloud edges → harp strum.</b> You hear the border when the surface changes.</li>
       <li><b>NASA data layers change the music.</b> Sea or land surface temperature makes warm places faster with a bright shimmer and cold places slower with a low breath; active fires crackle under the playhead and bring a dark brass swell; rain adds a rain soundscape, slows the music and can bring thunder; denser vegetation (NDVI) brings more birdsong.</li>
+      <li><b>Time travel</b> plays the same place with daily MODIS imagery from every fourth year since 2000. Where a lake dries up, like the Aral Sea, the music moves from the ocean piece towards the desert piece: you can hear the change.</li>
       <li>Move the map while it plays and the music follows the new view.</li>
       <li><b>Explore by touch</b> lets you drag a finger (or use the arrow keys) over the view and hear the spot underneath: each surface has its own instrument and brighter places sound higher. It is made so that people who cannot see the image can still explore Earth by ear.</li>
       <li><b>Save 30 s clip</b> renders the current view offline at full quality and gives you a WAV file, smooth even on a slow phone.</li>
@@ -262,7 +268,15 @@ const TOUR=[
   {v:[26,82,6],l:'bm',n:'Ganges plain'},{v:[0,22,6],l:'bm',n:'Congo rainforest'},
   {v:[-3.5,-62,6],l:'bm',n:'Amazon'},{v:[-15,-150,5],l:'bm',n:'Pacific Ocean'},{v:[72,-40,4],l:'bm',n:'Greenland ice'}];
 let tourIdx=-1,tourTimer=null;
-function stopTour(){if(!tourTimer)return;clearTimeout(tourTimer);tourTimer=null;tourIdx=-1;$('tour').textContent='World tour';$('tour').setAttribute('aria-pressed','false');msg('')}
+/* ---------- time travel: the same view, one late-summer day every four years ---------- */
+const YEARS=[2000,2004,2008,2012,2016,2020,2024];let travelIdx=-1,travelTimer=null;
+function stopTravel(){if(!travelTimer)return;clearTimeout(travelTimer);travelTimer=null;travelIdx=-1;$('travel').textContent='Time travel';$('travel').setAttribute('aria-pressed','false');$('yearTag').hidden=true;msg('')}
+function travelNext(){
+  travelIdx++;if(travelIdx>=YEARS.length){stopTravel();msg('Time travel finished. Pick a year with the date box to listen again.');return}
+  const y=YEARS[travelIdx];$('layer').value='modis';$('date').value=y+'-08-20';setLayer();
+  $('yearTag').textContent=y;$('yearTag').hidden=false;msg('Time travel '+(travelIdx+1)+'/'+YEARS.length+': 20 August '+y);
+  travelTimer=setTimeout(travelNext,7000)}
+function stopTour(){stopTravel();if(!tourTimer)return;clearTimeout(tourTimer);tourTimer=null;tourIdx=-1;$('tour').textContent='World tour';$('tour').setAttribute('aria-pressed','false');msg('')}
 function tourNext(){
   tourIdx=(tourIdx+1)%TOUR.length;const s=TOUR[tourIdx];
   if($('layer').value!==s.l){$('layer').value=s.l;setLayer()}
@@ -949,8 +963,14 @@ playBtn.onclick=()=>{
   if(!cols.length)return;
   ac.resume();step=step-step%8;bars=0;lastMidi=null;setMood(pickMood(),ac.currentTime+0.1);playBtn.textContent='Stop';startPlayback()};
 
+$('travel').onclick=()=>{
+  if(travelTimer){stopTravel();return}
+  stopTour();if(mode!=='map')setMode('map');if(exploring)setExplore(false);
+  if(!timer)playBtn.click();
+  $('travel').textContent='Stop time travel';$('travel').setAttribute('aria-pressed','true');travelNext()};
 $('tour').onclick=()=>{
   if(tourTimer){stopTour();return}
+  stopTravel();
   if(mode!=='map')setMode('map');
   if(!timer)playBtn.click();
   $('tour').textContent='Stop tour';$('tour').setAttribute('aria-pressed','true');tourNext()};

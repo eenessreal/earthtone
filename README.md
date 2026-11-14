@@ -60,6 +60,7 @@ Underneath, a string section plays the mood's chord progression (for example Eâ€
 
 - **World tour**: one tap flies the map through deserts, coasts, cities at night, rainforests, the open ocean and ice, and the music changes piece at every stop.
 - **Explore by touch**: drag a finger (or use the arrow keys) over the view to hear the spot underneath. Each surface has its own instrument and brighter places sound higher, so people who cannot see the image can still explore Earth by ear. A live text line announces the surface for screen readers.
+- **Time travel**: the same view with daily MODIS imagery from every fourth year since 2000 (20 August). Where a lake dries up, like the Aral Sea or Lake Urmia, the music drifts from the ocean piece towards the desert piece, so the change can be heard.
 - **Share this place**: the link keeps the exact view, layer and date (`#lat,lng,zoom,layer[,date]`).
 - **My location**: flies to where you are, so you can hear your own region.
 - **Save 30 s clip**: renders the current view offline at full quality and returns a WAV file.
