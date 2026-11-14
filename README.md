@@ -51,6 +51,12 @@ Then a playhead sweeps across the current map view from left to right. The view 
 
 Underneath, a string section plays the mood's chord progression (for example E–F–E–D in Desert, Dmaj7–E–Dmaj7–A in Ocean). Melody notes on strong beats snap to the current chord, and large jumps are folded back by an octave, so any landscape is heard as a tune rather than noise.
 
+## Listening on a phone
+
+- Notes are scheduled about 0.3 s ahead on the audio clock, so a busy device does not break the rhythm.
+- **Sound engine: Light** (default on touch devices) uses block-rate modulation, a shorter mono reverb and fewer layers.
+- **Save 30 s clip** renders the current view offline at full quality with an `OfflineAudioContext` and returns a WAV file, so the result never stutters, whatever the device.
+
 ## NASA data
 
 - **NASA GIBS (Global Imagery Browse Services)** WMTS tiles, EPSG:3857:

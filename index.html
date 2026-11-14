@@ -33,7 +33,7 @@ header p{margin:4px 0 0;color:var(--muted);max-width:62ch}
 .stage{position:relative;background:#000;border-radius:6px;overflow:hidden}
 #map{height:min(56vh,460px);width:100%;background:#000}
 #cv{display:block;width:100%;height:auto}
-#head{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 8px #fff;left:0;pointer-events:none;z-index:600}
+#head{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 8px #fff;left:0;pointer-events:none;z-index:600;will-change:transform}
 .src{font-family:var(--mono);font-size:.75rem;color:var(--muted);margin:0}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 button,.file,select,input[type=date]{font:600 .95rem var(--sans);border:1px solid var(--line);background:var(--panel);color:var(--fg);
@@ -54,6 +54,10 @@ button:focus-visible,.file:focus-within,select:focus-visible,input:focus-visible
 .meter #mMood{white-space:normal;font-size:.95rem;line-height:1.25}
 .meter span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 @media (max-width:520px){.meter{grid-template-columns:repeat(2,1fr)}}
+.clip{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.clip audio{width:min(100%,360px)}
+a.btn{font:600 .95rem var(--sans);border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:10px 14px;border-radius:6px;text-decoration:none}
+button:disabled{opacity:.6;cursor:progress}
 .how{border-top:1px solid var(--line);padding-top:14px;font-size:.92rem;color:var(--muted)}
 .how h2{font-size:1rem;color:var(--fg);margin:0 0 6px}
 .how ul{margin:0;padding-left:18px}
@@ -111,7 +115,8 @@ button:focus-visible,.file:focus-within,select:focus-visible,input:focus-visible
     <span class="src">Any satellite photo works best.</span>
   </div>
 
-  <div class="row"><button class="play" id="play">Play</button></div>
+  <div class="row"><button class="play" id="play">Play</button><button id="rec">Save 30 s clip</button><span class="src" id="recMsg"></span></div>
+  <div class="clip" id="clip" hidden><audio id="clipAudio" controls></audio><a class="btn" id="clipLink" href="#" download="earthtone.wav">Download WAV</a></div>
 
   <div class="ctrl">
     <label for="tempo">Speed <input type="range" id="tempo" min="75" max="130" value="100"></label>
@@ -119,7 +124,10 @@ button:focus-visible,.file:focus-within,select:focus-visible,input:focus-visible
       <select id="scale"><option value="auto">Auto (the place decides)</option><option value="major">Always bright</option><option value="minor">Always dark</option><option value="pent">Always calm</option></select>
     </label>
     <label for="beat">Percussion
-      <select id="beat"><option value="on">Timpani &amp; cymbals</option><option value="off">None</option></select>
+      <select id="beat"><option value="on">On</option><option value="off">Off</option></select>
+    </label>
+    <label for="quality">Sound engine
+      <select id="quality"><option value="full">Full orchestra</option><option value="light">Light (smoother on phones)</option></select>
     </label>
   </div>
 
@@ -147,6 +155,7 @@ button:focus-visible,.file:focus-within,select:focus-visible,input:focus-visible
       <li><b>Busy landscapes → bigger arrangement.</b> Calm stretches stay quiet with strings only. Colorful, varied stretches bring in harp, basses, timpani and a second violin line.</li>
       <li><b>Coastlines and cloud edges → harp strum.</b> You hear the border when the surface changes.</li>
       <li>Move the map while it plays and the music follows the new view.</li>
+      <li><b>Save 30 s clip</b> renders the current view offline at full quality and gives you a WAV file, smooth even on a slow phone.</li>
     </ul>
     <p>Imagery from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS). Built for the NASA Space Apps Challenge 2026, "The Earth Information Jukebox", by team Earthtone. All sound is synthesized in the browser with the Web Audio API.</p>
   </section>
@@ -322,20 +331,23 @@ const key=()=>mood;
 /* ---------- audio core ---------- */
 const mtof=m=>440*Math.pow(2,(m-69)/12);
 const NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const LITE=(()=>{try{return matchMedia('(pointer: coarse)').matches||(navigator.hardwareConcurrency||8)<=4}catch(e){return false}})();
+let LITE=(()=>{try{return matchMedia('(pointer: coarse)').matches||(navigator.hardwareConcurrency||8)<=4}catch(e){return false}})();
 const LV=[0.15,0.3,0.45,0.6,0.8],PLV=[0.05,0.15,0.3,0.5],SPREAD=[-7,6,-4,8,-9];
+function kr(p){try{p.automationRate='k-rate'}catch(e){}return p}   // modulation computed once per audio block, not per sample
 function nearestIdx(arr,a){let b=0;for(let i=1;i<arr.length;i++)if(Math.abs(arr[i]-a)<Math.abs(arr[b]-a))b=i;return b}
-function initAudio(){
-  const AC=window.AudioContext||window.webkitAudioContext;
-  try{ac=new AC({latencyHint:'playback'})}catch(e){ac=new AC()}   // bigger audio buffer: no crackles on phones
+function buildBus(full){   // master chain: compressor, reverb (shorter and mono in light mode), soft drum bus, shared reverb lanes
   const comp=ac.createDynamicsCompressor();comp.threshold.value=-18;comp.ratio.value=3;comp.attack.value=0.02;
   const out=ac.createGain();out.gain.value=1.3;out.connect(comp).connect(ac.destination);
-  const sr=ac.sampleRate,len=Math.floor(sr*(LITE?1.8:2.8)),ir=ac.createBuffer(2,len,sr);
-  for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6)}
+  const chs=full?2:1,sr=ac.sampleRate,len=Math.floor(sr*(full?2.8:1.2)),ir=ac.createBuffer(chs,len,sr);
+  for(let c=0;c<chs;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6)}
   const rev=ac.createConvolver();rev.buffer=ir;const wet=ac.createGain();wet.gain.value=0.5;rev.connect(wet).connect(out);
-  const p=ac.createGain(),pl=ac.createBiquadFilter();p.gain.value=0.75;pl.type='lowpass';pl.frequency.value=6500;p.connect(pl).connect(out);  // softer drums
+  const p=ac.createGain(),pl=ac.createBiquadFilter();p.gain.value=0.75;pl.type='lowpass';pl.frequency.value=6500;p.connect(pl).connect(out);
   const lane=(amt,dest)=>{const g=ac.createGain();g.connect(dest);const s=ac.createGain();s.gain.value=amt;g.connect(s).connect(rev);return g};
   bus={out,rev,p,lv:LV.map(a=>lane(a,out)),plv:PLV.map(a=>lane(a,p))}}
+function initAudio(){
+  const AC=window.AudioContext||window.webkitAudioContext;
+  try{ac=new AC({latencyHint:'playback'})}catch(e){ac=new AC()}   // bigger audio buffer: fewer dropouts on phones
+  buildBus(!LITE)}
 function send(node,amt){node.connect(bus.lv[nearestIdx(LV,amt)])}
 function sendP(node,amt){node.connect(bus.plv[nearestIdx(PLV,amt)])}
 function env(g,when,vol,att,len,rel){
@@ -360,13 +372,13 @@ function violin(midi,when,len,vol,bright=0.5){
   const f=ac.createBiquadFilter(),g=ac.createGain(),v=vibrato(when,10);
   f.type='lowpass';f.frequency.value=1500+bright*1800;f.Q.value=0.6;
   [-7,7].forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(midi);o.detune.value=dt;
-    v.g.connect(o.detune);o.connect(f);o.start(when);o.stop(when+len+0.7)});
+    v.g.connect(kr(o.detune));o.connect(f);o.start(when);o.stop(when+len+0.7)});
   v.l.stop(when+len+0.7);env(g,when,vol,0.09,len,0.45);f.connect(g);send(g,0.5)}
 function erhu(midi,when,len,vol,from){   // two-string fiddle: one voice, nasal body, slides between notes
   const bp=ac.createBiquadFilter(),f=ac.createBiquadFilter(),g=ac.createGain(),v=vibrato(when,16,6,0.15),o=ac.createOscillator();
   bp.type='bandpass';bp.frequency.value=1100;bp.Q.value=0.8;f.type='lowpass';f.frequency.value=3200;o.type='sawtooth';
-  if(from!=null&&from!==midi){o.frequency.setValueAtTime(mtof(from),when);o.frequency.exponentialRampToValueAtTime(mtof(midi),when+0.14)}else o.frequency.value=mtof(midi);
-  v.g.connect(o.detune);o.connect(bp).connect(f).connect(g);o.start(when);o.stop(when+len+0.6);v.l.stop(when+len+0.6);
+  if(from!=null&&from!==midi){kr(o.frequency).setValueAtTime(mtof(from),when);o.frequency.exponentialRampToValueAtTime(mtof(midi),when+0.14)}else o.frequency.value=mtof(midi);
+  v.g.connect(kr(o.detune));o.connect(bp).connect(f).connect(g);o.start(when);o.stop(when+len+0.6);v.l.stop(when+len+0.6);
   env(g,when,vol*2.2,0.07,len,0.35);send(g,0.45)}
 function spiccato(midi,when,vol){
   const f=ac.createBiquadFilter(),g=ac.createGain();f.type='lowpass';f.frequency.value=2600;
@@ -374,14 +386,14 @@ function spiccato(midi,when,vol){
   g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(vol,when+0.01);g.gain.exponentialRampToValueAtTime(0.001,when+0.16);f.connect(g);send(g,0.35)}
 function brass(midi,when,len,vol){
   const f=ac.createBiquadFilter(),g=ac.createGain(),v=vibrato(when,5,5,0.4);f.type='lowpass';f.Q.value=1.2;
-  f.frequency.setValueAtTime(300,when);f.frequency.linearRampToValueAtTime(1400+vol*3000,when+0.12);f.frequency.setTargetAtTime(1000,when+0.2,0.4);
-  [-4,4,1200].forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(midi);o.detune.value=dt;v.g.connect(o.detune);o.connect(f);o.start(when);o.stop(when+len+0.5)});
+  kr(f.frequency).setValueAtTime(300,when);f.frequency.linearRampToValueAtTime(1400+vol*3000,when+0.12);f.frequency.setTargetAtTime(1000,when+0.2,0.4);
+  [-4,4,1200].forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(midi);o.detune.value=dt;v.g.connect(kr(o.detune));o.connect(f);o.start(when);o.stop(when+len+0.5)});
   v.l.stop(when+len+0.5);env(g,when,vol,0.08,len,0.3);f.connect(g);send(g,0.45)}
 function flute(midi,when,len,vol,vib=8,breath=0.5,bend=0){
   const g=ac.createGain(),v=vibrato(when,vib,5);
   [['sine',1],['triangle',0.2]].forEach(([t,a])=>{const o=ac.createOscillator(),og=ac.createGain();o.type=t;o.frequency.value=mtof(midi);og.gain.value=a;
     if(bend){o.detune.setValueAtTime(bend,when);o.detune.linearRampToValueAtTime(0,when+Math.max(0.09,Math.abs(bend)/1000))}
-    v.g.connect(o.detune);o.connect(og).connect(g);o.start(when);o.stop(when+len+0.6)});
+    v.g.connect(kr(o.detune));o.connect(og).connect(g);o.start(when);o.stop(when+len+0.6)});
   v.l.stop(when+len+0.6);
   const n=noiseSrc(when),bp=ac.createBiquadFilter(),ng=ac.createGain();
   bp.type='bandpass';bp.frequency.value=mtof(midi)*2;bp.Q.value=2;
@@ -396,7 +408,7 @@ const bansuri=(m,w,l,v)=>flute(m,w,l,v,9,1.0,-150);      // long glide into the 
 const panflute=(m,w,l,v)=>flute(m,w,l*0.8,v,4,1.5,-30);
 function glass(midi,when,len,vol){
   const g=ac.createGain(),v=vibrato(when,4,3,0.6);
-  [[1,1],[2.01,0.25],[3,0.1]].forEach(([k,a])=>{const o=ac.createOscillator(),og=ac.createGain();o.frequency.value=mtof(midi)*k;og.gain.value=a;v.g.connect(o.detune);o.connect(og).connect(g);o.start(when);o.stop(when+len+1.5)});
+  [[1,1],[2.01,0.25],[3,0.1]].forEach(([k,a])=>{const o=ac.createOscillator(),og=ac.createGain();o.frequency.value=mtof(midi)*k;og.gain.value=a;v.g.connect(kr(o.detune));o.connect(og).connect(g);o.start(when);o.stop(when+len+1.5)});
   v.l.stop(when+len+1.5);env(g,when,vol,0.25,len,1.2);send(g,0.8)}
 
 /* ---------- struck and plucked ---------- */
@@ -445,14 +457,14 @@ function strings(ch,when,len,vol){
   const r=key().root,f=ac.createBiquadFilter(),g=ac.createGain(),v=vibrato(when,6,4.8);f.type='lowpass';f.frequency.value=1100;
   const notes=[r-12+ch[0],r+ch[1]-12,r+ch[2]-12,r+ch[0]];if(ch[3]!==undefined)notes.push(r+ch[3]-12);
   notes.forEach((m,i)=>(LITE?[SPREAD[i]]:[-9,9]).forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m);o.detune.value=dt;
-    v.g.connect(o.detune);o.connect(f);o.start(when);o.stop(when+len+1.2)}));
-  v.l.stop(when+len+1.2);env(g,when,vol*(LITE?1.5:1),0.5,len,0.9);f.connect(g);send(g,0.7)}
+    v.g.connect(kr(o.detune));o.connect(f);o.start(when);o.stop(when+len+(LITE?0.6:1.2))}));
+  v.l.stop(when+len+(LITE?0.6:1.2));env(g,when,vol*(LITE?1.5:1),0.5,len,LITE?0.45:0.9);f.connect(g);send(g,0.7)}
 function choir(ch,when,len,vol){
   const r=key().root,mix=ac.createGain(),g=ac.createGain(),v=vibrato(when,7,5.2,0.5);
-  [r+ch[0]-12,r+ch[1]-12,r+ch[2]-12,r+ch[0]].forEach((m,i)=>(LITE?[SPREAD[i]]:[-11,11]).forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m);o.detune.value=dt;v.g.connect(o.detune);o.connect(mix);o.start(when);o.stop(when+len+1.6)}));
-  v.l.stop(when+len+1.6);
+  [r+ch[0]-12,r+ch[1]-12,r+ch[2]-12,r+ch[0]].forEach((m,i)=>(LITE?[SPREAD[i]]:[-11,11]).forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m);o.detune.value=dt;v.g.connect(kr(o.detune));o.connect(mix);o.start(when);o.stop(when+len+(LITE?0.8:1.6))}));
+  v.l.stop(when+len+(LITE?0.8:1.6));
   [[750,1],[1150,0.6],[2800,0.25]].forEach(([fr,a])=>{const bp=ac.createBiquadFilter(),ag=ac.createGain();bp.type='bandpass';bp.frequency.value=fr;bp.Q.value=6;ag.gain.value=a*3;mix.connect(bp).connect(ag).connect(g)});
-  env(g,when,vol*(LITE?1.5:1),0.8,len,1.3);send(g,0.9)}
+  env(g,when,vol*(LITE?1.5:1),0.8,len,LITE?0.7:1.3);send(g,0.9)}
 function drone(when,len,vol){   // soft tonic and fifth underneath
   const r=key().root-24,g=ac.createGain(),f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=600;
   [[0,-3,'triangle'],[0,3,'triangle'],[7,0,'sine'],[12,-2,'triangle']].forEach(([iv,dt,t])=>{const o=ac.createOscillator();o.type=t;o.frequency.value=mtof(r+iv);o.detune.value=dt;o.connect(f);o.start(when);o.stop(when+len+1)});
@@ -461,7 +473,7 @@ function tanpura(when,len){const r=key().root;[r-17,r-12,r-12,r-24].forEach((m,i
 function didgeridoo(when,len){
   const o=ac.createOscillator(),bp=ac.createBiquadFilter(),g=ac.createGain(),l=ac.createOscillator(),lg=ac.createGain();
   o.type='sawtooth';o.frequency.value=mtof(key().root-24);bp.type='bandpass';bp.Q.value=4;bp.frequency.value=500;
-  l.frequency.value=0.45;lg.gain.value=260;l.connect(lg).connect(bp.frequency);
+  l.frequency.value=0.45;lg.gain.value=260;l.connect(lg).connect(kr(bp.frequency));
   o.connect(bp).connect(g);env(g,when,0.16,0.3,len,0.6);send(g,0.3);o.start(when);l.start(when);o.stop(when+len+0.7);l.stop(when+len+0.7)}
 function bass(midi,when,len,vol){
   const f=ac.createBiquadFilter(),g=ac.createGain();f.type='lowpass';f.frequency.value=420;
@@ -475,11 +487,11 @@ function playPad(type,ch,when,len,e){
 
 /* ---------- percussion (all through a soft drum bus) ---------- */
 function drumHit(f0,f1,when,vol,decay,rev=0.15){
-  const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(f0,when);o.frequency.exponentialRampToValueAtTime(f1,when+decay*0.4);
+  const o=ac.createOscillator(),g=ac.createGain();kr(o.frequency).setValueAtTime(f0,when);o.frequency.exponentialRampToValueAtTime(f1,when+decay*0.4);
   g.gain.setValueAtTime(vol,when);g.gain.exponentialRampToValueAtTime(0.001,when+decay);o.connect(g);sendP(g,rev);o.start(when);o.stop(when+decay+0.05)}
 function timpani(midi,when,vol){
   const f=mtof(midi);[[1,1],[1.5,0.4],[2,0.25]].forEach(([k,a])=>{
-    const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(f*k*1.04,when);o.frequency.exponentialRampToValueAtTime(f*k,when+0.08);
+    const o=ac.createOscillator(),g=ac.createGain();kr(o.frequency).setValueAtTime(f*k*1.04,when);o.frequency.exponentialRampToValueAtTime(f*k,when+0.08);
     g.gain.setValueAtTime(vol*a,when);g.gain.exponentialRampToValueAtTime(0.001,when+1.1);o.connect(g);sendP(g,0.4);o.start(when);o.stop(when+1.2)})}
 const dum=(w,v)=>drumHit(140,75,w,v,0.35);
 const tekSoft=(w,v)=>noiseHit(w,'bandpass',1800,2,v,0.05);
@@ -490,7 +502,7 @@ function taiko(w,v){drumHit(92,48,w,v,0.8,0.35);noiseHit(w,'lowpass',260,0.7,v*0
 const shime=(w,v)=>drumHit(330,260,w,v,0.12,0.15);
 function woodblock(w,v){tone('sine',920,w,v,0.07,0.2);tone('sine',1480,w,v*0.5,0.05,0.2)}
 function gong(w,v,low){const f0=low?82:196;[[1,1],[1.48,0.6],[2.11,0.45],[2.73,0.3],[3.4,0.2]].forEach(([k,a])=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f0*k;g.gain.setValueAtTime(0,w);g.gain.linearRampToValueAtTime(v*a,w+0.04);g.gain.exponentialRampToValueAtTime(0.001,w+3.5);o.connect(g);send(g,0.6);o.start(w);o.stop(w+3.6)})}
-function tablaGe(w,v){const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(82,w);o.frequency.linearRampToValueAtTime(118,w+0.18);g.gain.setValueAtTime(v,w);g.gain.exponentialRampToValueAtTime(0.001,w+0.5);o.connect(g);sendP(g,0.25);o.start(w);o.stop(w+0.55)}
+function tablaGe(w,v){const o=ac.createOscillator(),g=ac.createGain();kr(o.frequency).setValueAtTime(82,w);o.frequency.linearRampToValueAtTime(118,w+0.18);g.gain.setValueAtTime(v,w);g.gain.exponentialRampToValueAtTime(0.001,w+0.5);o.connect(g);sendP(g,0.25);o.start(w);o.stop(w+0.55)}
 function tablaNa(w,v){tone('sine',540,w,v,0.28,0.3);tone('sine',1080,w,v*0.3,0.12,0.3);noiseHit(w,'bandpass',3200,2,v*0.25,0.03)}
 const tablaTin=(w,v)=>tone('sine',690,w,v,0.14,0.3);
 function djembe(t,w,v){if(t==='B')drumHit(85,62,w,v,0.35);else if(t==='T')drumHit(250,210,w,v*0.6,0.18);else noiseHit(w,'bandpass',1600,1.2,v*0.35,0.07)}
@@ -517,7 +529,7 @@ function percussion(kit,beat,when,dur,e){
     case'softkit':if(beat===0||beat===5)drumHit(100,45,when,0.35,0.35,0.1);if(beat===4)noiseHit(when,'bandpass',1500,0.7,0.08,0.2,0.4);if(beat%2)noiseHit(when,'highpass',7000,1,0.02,0.05,0.2);break}}
 
 /* ---------- soundscapes ---------- */
-function lfo(rate,depth,param){const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=rate;g.gain.value=depth;o.connect(g).connect(param);o.start();return o}
+function lfo(rate,depth,param){const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=rate;g.gain.value=depth;o.connect(g).connect(kr(param));o.start();return o}
 function startAmb(type,when){
   const t=Math.max(when??0,ac.currentTime),out=ac.createGain(),nodes=[];
   out.gain.setValueAtTime(0,ac.currentTime);out.gain.setTargetAtTime(1,t,1.5);send(out,0.25);
@@ -546,7 +558,7 @@ function bird(when,exotic){
   for(let i=0;i<n;i++){const t=when+i*(exotic?0.09:0.12),o=tone('sine',base,t,0.035,0.08,0.4,0.005);
     o.frequency.setValueAtTime(base*(exotic&&i%2?1.4:1),t);o.frequency.exponentialRampToValueAtTime(base*(exotic?0.7:1.25),t+0.07)}}
 function frog(when){const o=ac.createOscillator(),g=ac.createGain(),am=ac.createOscillator(),ag=ac.createGain(),f=ac.createBiquadFilter();o.type='square';o.frequency.value=150+Math.random()*80;
-  am.frequency.value=22;ag.gain.value=0.04;am.connect(ag).connect(g.gain);g.gain.setValueAtTime(0.04,when);g.gain.setValueAtTime(0,when+0.25);
+  am.frequency.value=22;ag.gain.value=0.04;am.connect(ag).connect(kr(g.gain));g.gain.setValueAtTime(0.04,when);g.gain.setValueAtTime(0,when+0.25);
   f.type='lowpass';f.frequency.value=900;o.connect(f).connect(g);send(g,0.3);o.start(when);am.start(when);o.stop(when+0.3);am.stop(when+0.3)}
 function horn(when){const f=[392,466,523][Math.floor(Math.random()*3)];[f,f*1.26].forEach(fr=>{const o=tone('square',fr,when,0.025,0.35,0.15,0.01);o.stop(when+0.3)})}
 function siren(when){const o=tone('sine',700,when,0.025,2.2,0.4,0.2);for(let i=0;i<4;i++)o.frequency.linearRampToValueAtTime(i%2?700:1000,when+0.5*(i+1))}
@@ -621,9 +633,18 @@ function playLead(voice,m,t,len,vol,e,from,noteLen,bright){
    A look-ahead scheduler: notes are booked on the audio clock about 0.3 s ahead,
    so a busy phone (map, tiles) can no longer make the rhythm stumble.
    The screen follows the sound through a small queue drawn every animation frame. */
-const uiQ=[];let nextTime=0,raf=null,lastStrum=-99;
+const uiQ=[],headTrack=[];let nextTime=0,raf=null,lastStrum=-99,stageW=0;
+function measure(){stageW=head.parentElement.clientWidth}
+try{new ResizeObserver(measure).observe(head.parentElement)}catch(e){addEventListener('resize',measure)}
+function audioNow(){   // the time actually coming out of the speaker, interpolated between audio callbacks
+  try{const ts=ac.getOutputTimestamp();if(ts&&ts.contextTime>0)return ts.contextTime+(performance.now()-ts.performanceTime)/1000}catch(e){}
+  return ac.currentTime}
 function ui(t,fn){uiQ.push([t,fn])}
-function drawLoop(){const t=ac.currentTime;while(uiQ.length&&uiQ[0][0]<=t)uiQ.shift()[1]();raf=requestAnimationFrame(drawLoop)}
+function drawLoop(){
+  const t=audioNow();while(uiQ.length&&uiQ[0][0]<=t)uiQ.shift()[1]();
+  while(headTrack.length>1&&headTrack[1][0]<=t)headTrack.shift();
+  const h=headTrack[0];if(h&&h[0]<=t){const x=(h[1]+Math.min(1,(t-h[0])/h[2]))/STEPS;head.style.transform='translateX('+(x*stageW).toFixed(1)+'px)'}
+  raf=requestAnimationFrame(drawLoop)}
 function setMood(m,when){
   if(mood&&m.id===mood.id&&amb)return;
   const changed=amb!==null;mood=m;lastMidi=null;
@@ -671,15 +692,41 @@ function scheduleStep(when){
   for(const ev in k.events)if(Math.random()<k.events[ev])EVENTS[ev](when+Math.random()*dur);
 
   const s=step,surf=c.surf;
-  ui(when,()=>{head.style.left=((s+.5)/STEPS*100)+'%';$('mSurf').textContent=surf;if(label)$('mNote').textContent=label});
+  headTrack.push([when,s,dur]);
+  ui(when,()=>{$('mSurf').textContent=surf;if(label)$('mNote').textContent=label});
   step=(step+1)%STEPS;if(step%8===0)bars++;
   return dur}
 function scheduler(){
   if(nextTime<ac.currentTime-0.1)nextTime=ac.currentTime+0.05;   // after a long stall, skip ahead instead of piling up notes
   while(nextTime<ac.currentTime+0.3)nextTime+=scheduleStep(nextTime);
   timer=setTimeout(scheduler,50)}
-function startPlayback(){nextTime=ac.currentTime+0.12;scheduler();if(!raf)drawLoop()}
-function stopPlayback(){clearTimeout(timer);timer=null;if(raf){cancelAnimationFrame(raf);raf=null}uiQ.length=0;if(amb){amb.stop(ac.currentTime);amb=null}}
+function startPlayback(){measure();nextTime=ac.currentTime+0.12;scheduler();if(!raf)drawLoop()}
+/* Offline render: the same conductor writes 30 s of music into an OfflineAudioContext,
+   which renders as fast as the device allows instead of in real time, so the result never stutters. */
+async function renderClip(seconds){
+  const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;if(!OAC)throw new Error('no offline audio');
+  const live={ac,bus,LITE,step,bars,lastMidi,mood,amb,energy,chord,lastStrum},q=uiQ.splice(0),ht=headTrack.splice(0),sr=44100;
+  try{
+    ac=new OAC(2,Math.ceil(sr*seconds),sr);LITE=false;buildBus(true);
+    step=0;bars=0;lastMidi=null;mood=null;amb=null;lastStrum=-99;
+    setMood(pickMood(),0.05);
+    let t=0.1;while(t<seconds-2.5)t+=scheduleStep(t);
+    bus.out.gain.setValueAtTime(1.3,seconds-2.4);bus.out.gain.linearRampToValueAtTime(0.0001,seconds-0.3);
+    const name=mood.name,pr=ac.startRendering();
+    const buf=pr&&pr.then?await pr:await new Promise(res=>{ac.oncomplete=e=>res(e.renderedBuffer)});
+    return{buf,name}}
+  finally{
+    ({ac,bus,LITE,step,bars,lastMidi,mood,amb,energy,chord,lastStrum}=live);
+    uiQ.length=0;uiQ.push(...q);headTrack.length=0;headTrack.push(...ht)}}
+function wavBlob(buf){   // 16-bit PCM WAV
+  const ch=buf.numberOfChannels,len=buf.length,sr=buf.sampleRate,dv=new DataView(new ArrayBuffer(44+len*ch*2));
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');dv.setUint32(4,36+len*ch*2,true);w(8,'WAVE');w(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,ch,true);
+  dv.setUint32(24,sr,true);dv.setUint32(28,sr*ch*2,true);dv.setUint16(32,ch*2,true);dv.setUint16(34,16,true);w(36,'data');dv.setUint32(40,len*ch*2,true);
+  const data=[...Array(ch)].map((_,i)=>buf.getChannelData(i));let o=44;
+  for(let i=0;i<len;i++)for(let c=0;c<ch;c++){const s=Math.max(-1,Math.min(1,data[c][i]));dv.setInt16(o,s<0?s*0x8000:s*0x7fff,true);o+=2}
+  return new Blob([dv],{type:'audio/wav'})}
+function stopPlayback(){clearTimeout(timer);timer=null;if(raf){cancelAnimationFrame(raf);raf=null}uiQ.length=0;headTrack.length=0;if(amb){amb.stop(ac.currentTime);amb=null}}
 
 playBtn.onclick=()=>{
   if(!ac)initAudio();
@@ -687,6 +734,23 @@ playBtn.onclick=()=>{
   if(mode==='map'&&!capture())return;
   if(!cols.length)return;
   ac.resume();step=step-step%8;bars=0;lastMidi=null;setMood(pickMood(),ac.currentTime+0.1);playBtn.textContent='Stop';startPlayback()};
+
+let clipUrl=null;
+$('rec').onclick=async()=>{
+  if(timer){stopPlayback();playBtn.textContent='Play'}
+  if(mode==='map'&&!capture())return;
+  if(!cols.length)return;
+  const b=$('rec');b.disabled=true;$('recMsg').textContent='Rendering 30 s of music…';
+  try{
+    const{buf,name}=await renderClip(30);
+    if(clipUrl)URL.revokeObjectURL(clipUrl);clipUrl=URL.createObjectURL(wavBlob(buf));
+    $('clipAudio').src=clipUrl;$('clipLink').href=clipUrl;
+    $('clipLink').download='earthtone-'+name.toLowerCase().replace(/[^a-z]+/g,'-').replace(/^-|-$/g,'')+'.wav';
+    $('clip').hidden=false;$('recMsg').textContent=name+': 30 s clip ready.'}
+  catch(e){$('recMsg').textContent='This browser could not render a clip. Try Chrome or Safari.'}
+  b.disabled=false};
+$('quality').value=LITE?'light':'full';
+$('quality').onchange=()=>{LITE=$('quality').value==='light';if(ac)buildBus(!LITE)};
 
 /* ---------- tabs and upload ---------- */
 function setMode(m){
