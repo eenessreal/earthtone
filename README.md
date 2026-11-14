@@ -19,8 +19,7 @@ First, the whole view is read as one scene and picks a **mood**: its own key, mo
 | Dark (night lights layer) | *Night*: slow, E minor, city lights as bells |
 | Mixed land and sea | *Coast*: C Mixolydian, harp |
 
-Then 
-A playhead sweeps across the current map view from left to right. The view is split into 48 vertical bands, and each band becomes one eighth note.
+Then a playhead sweeps across the current map view from left to right. The view is split into 48 vertical bands, and each band becomes one eighth note.
 
 | Image feature | Musical result |
 |---|---|
