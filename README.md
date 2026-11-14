@@ -8,16 +8,20 @@ Built for the **NASA Space Apps Challenge 2026**, challenge *The Earth Informati
 
 ## How it works
 
-First, the whole view is read as one scene and picks a **mood**: its own key, mode, tempo, accompaniment and percussion.
+First, the whole view is read as one scene, and each kind of place gets **its own piece**: its own key and mode, tempo, rhythm of the tune, lead instruments, accompaniment figure, percussion and a live synthesized soundscape.
 
-| Scene | Mood |
+| Scene | Piece |
 |---|---|
-| Mostly ocean | *Ocean*: slow, D Lydian, flute and harp |
-| Mostly vegetation | *Forest*: lively, G major, plucked strings, timpani |
-| Mostly bare land | *Desert*: E Phrygian dominant, darbuka rhythm, flute lead |
-| Mostly cloud or ice | *Ice*: sparse, A Dorian, celesta |
-| Dark (night lights layer) | *Night*: slow, E minor, city lights as bells |
-| Mixed land and sea | *Coast*: C Mixolydian, harp |
+| Mostly ocean | *Open ocean*: slow, D Lydian, flute lead, rolling harp, choir; surf and gulls |
+| Mostly bare land | *Desert of the pharaohs*: E Hijaz (Phrygian dominant), oud ostinato, ney flute with grace notes, drone, darbuka and sistrum; desert wind |
+| Vegetation in the tropics | *Rainforest*: E minor pentatonic, marimba ostinato, pan flute, tribal drums; insects, frogs, exotic birds, rain |
+| Vegetation elsewhere | *Green lands*: G major, pizzicato strings, violins, horns, timpani; birdsong and a stream |
+| Mostly cloud or ice | *Ice and cloud*: A Dorian, glass harmonica, celesta, choir; cold wind and cracking ice |
+| Grey built-up areas (daily MODIS layer) | *City*: F minor, driving spiccato strings, brass, drum kit; traffic, crowd murmur, horns, sirens |
+| Night lights layer | *City lights* (lit cities) or *Night* (dark areas) |
+| Mixed land and sea | *Coast*: C Mixolydian, harp; light surf and gulls |
+
+When the map moves into a different kind of place, the music changes piece at the next bar with a cymbal and timpani transition.
 
 Then a playhead sweeps across the current map view from left to right. The view is split into 48 vertical bands, and each band becomes one eighth note.
 
