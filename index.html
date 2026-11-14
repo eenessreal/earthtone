@@ -127,6 +127,11 @@ button:disabled{opacity:.6;cursor:progress}
     <button data-v="-15,-150,5" data-l="bm">Pacific Ocean</button>
     <button data-v="48.5,10,6" data-l="bm">European forests</button>
     <button data-v="72,-40,4" data-l="bm">Greenland ice</button>
+    <button data-v="-13.5,-72,6" data-l="bm">Andes</button>
+    <button data-v="-23,-43.3,7" data-l="bm">Rio coast</button>
+    <button data-v="53.3,-8,6" data-l="bm">Ireland</button>
+    <button data-v="19.4,-99.1,7" data-l="night">Mexico City at night</button>
+    <button data-v="47,103,5" data-l="bm">Mongolian steppe</button>
   </div>
   <div id="upCtl" class="row" hidden>
     <label class="file">Choose image<input type="file" id="file" accept="image/*"></label>
@@ -168,7 +173,7 @@ button:disabled{opacity:.6;cursor:progress}
         <i>Japan</i> (in scale, koto, shakuhachi, taiko, temple bells, Tokyo crossing signals),
         <i>China and Southeast Asia</i> (pentatonic, guzheng, erhu, dizi, gongs and woodblocks),
         <i>India</i> (raag Khamaj, sitar, bansuri, tanpura, tabla),
-        <i>Africa</i> (kalimba, djembe) and <i>Australia</i> (didgeridoo, clapsticks).</li>
+        <i>Africa</i> (kalimba, djembe), <i>Australia</i> (didgeridoo, clapsticks), <i>the Andes</i> (quena, charango, bombo), <i>Brazil</i> (bossa nova guitar, samba percussion), <i>the Celtic isles</i> (tin whistle, fiddle, harp, bodhrán, pipe drones), <i>Mexico</i> (mariachi trumpets, violins, vihuela) and <i>the Central Asian steppe</i> (dombra, galloping rhythm, overtone singing).</li>
       <li><b>Brightness → melody.</b> Brighter columns (clouds, ice, desert) climb higher. The melody leans on the notes of the current chord, like a real tune.</li>
       <li><b>Surface → instrument.</b> <span class="w">Water</span> is played by a flute, <span class="g">vegetation</span> by violins, <span class="l">bare land</span> by brighter violins, cloud and ice by a celesta.</li>
       <li><b>Busy landscapes → bigger arrangement.</b> Calm stretches stay quiet with strings only. Colorful, varied stretches bring in harp, basses, timpani and a second violin line.</li>
@@ -413,7 +418,18 @@ const FLAVORS={
   africa:{root:60,scale:[0,2,4,7,9],prog:[[0,4,7],[5,9,12],[0,4,7],[7,11,14]],tempoMul:1.05,
     lead:{water:'flute',vegetation:'kalimba',land:'kalimba',urban:'kalimba'},bell:'kalimba',ost:'kalimba',strum:'kalimba',
     perc:'djembe',brass:false},
-  australia:{padExtra:'didgeridoo',perc:'clapsticks'}};
+  australia:{padExtra:'didgeridoo',perc:'clapsticks'},
+  andes:{root:52,scale:[0,3,5,7,10],prog:[[0,3,7],[-2,2,5],[3,7,10],[0,3,7]],                       // huayno colour
+    lead:{water:'panflute',vegetation:'quena',land:'quena',urban:'quena'},bell:'charango',ost:'charango',strum:'charango',perc:'bombo',brass:false,highland:true},
+  brazil:{root:60,scale:[0,2,4,5,7,9,11],prog:[[0,4,7,11],[2,5,9,12],[-3,0,4,7],[-5,-1,2,5]],          // bossa nova changes
+    lead:{water:'flute',vegetation:'flute',land:'flute',urban:'brass'},bell:'guitar',ost:'bossa',strum:'guitar',perc:'samba',brass:false,
+    only:['coast','city','citynight','forest','ocean']},
+  celtic:{root:62,scale:[0,2,4,5,7,9,10],prog:[[0,4,7],[-2,2,5],[0,4,7],[-5,-1,2]],                     // D mixolydian
+    lead:{water:'whistle',vegetation:'whistle',land:'violin',urban:'violin'},bell:'harp',ost:'harp',strum:'harp',perc:'bodhran',brass:false,ornament:true,padExtra:'pipes'},
+  mexico:{root:60,scale:[0,2,4,5,7,9,11],prog:[[0,4,7],[5,9,12],[7,11,14],[0,4,7]],tempoMul:1.05,       // mariachi
+    lead:{water:'violin',vegetation:'violin',land:'brass',urban:'brass'},bell:'guitar',ost:'vihuela',strum:'guitar',perc:'none',brass:true},
+  steppe:{root:57,scale:[0,3,5,7,10],prog:[[0,3,7],[-2,2,5],[0,3,7],[-4,0,3]],tempoMul:1.05,
+    lead:{water:'kaval',vegetation:'erhu',land:'erhu',urban:'erhu'},bell:'dombra',ost:'dombra',strum:'dombra',perc:'gallop',brass:false,padExtra:'throat'}};
 const REGIONS=[   // [south, north, west, east]; first match wins
   {id:'japan',name:'Japan',box:[30,46,128,146]},
   {id:'anatolia',name:'Anatolia',box:[36,42.5,28.5,45]},
@@ -424,11 +440,17 @@ const REGIONS=[   // [south, north, west, east]; first match wins
   {id:'mena',name:'Egypt',box:[21,32,24,36]},
   {id:'mena',name:'Sahara & Arabia',box:[12,37,-17,60]},
   {id:'africa',name:'Africa',box:[-35,12,-18,52]},
-  {id:'australia',name:'Australia',box:[-45,-10,112,155]}];
+  {id:'australia',name:'Australia',box:[-45,-10,112,155]},
+  {id:'celtic',name:'Celtic isles',box:[49.5,61,-11,2]},
+  {id:'mexico',name:'Mexico',box:[14,33,-118,-86]},
+  {id:'andes',name:'Andes',box:[-45,12,-82,-66]},
+  {id:'brazil',name:'Brazil',box:[-34,5,-66,-34]},
+  {id:'steppe',name:'Central Asian steppe',box:[35,55,46,120]}];
 const MANUAL={major:'forest',minor:'night',pent:'coast'};
 let mood=null,amb=null,curLat=null,curLng=null;
 const composed=new Map();
 function compose(pid,reg){
+  if(reg&&FLAVORS[reg.id].only&&!FLAVORS[reg.id].only.includes(pid))reg=null;   // e.g. no samba in the rainforest
   const id=pid+'|'+(reg?reg.name:'');if(composed.has(id))return composed.get(id);
   const p=PIECES[pid],f=reg?FLAVORS[reg.id]:{},calm=['ocean','ice','night'].includes(pid),city=pid==='city'||pid==='citynight';
   const m={...p,id,pid,name:p.name+(reg?' · '+reg.name:'')};
@@ -454,8 +476,12 @@ function detectPiece(){
   if(f.water>0.6)return'ocean';
   if(f.land>0.45&&f.water<0.15&&f.vegetation<0.3)return'desert';
   if(f.vegetation>0.4&&f.water<0.35)return(curLat!==null&&Math.abs(curLat)<24)?'jungle':'forest';
+  if(f.water<0.12)return f.vegetation>=0.25?((curLat!==null&&Math.abs(curLat)<24)?'jungle':'forest'):'desert';   // inland, no sea in view
   return'coast'}
-function pickMood(){const v=$('scale').value;return compose(v==='auto'?detectPiece():MANUAL[v],regionAt(curLat,curLng))}
+function pickMood(){
+  const v=$('scale').value,reg=regionAt(curLat,curLng);let pid=v==='auto'?detectPiece():MANUAL[v];
+  if(pid==='jungle'&&reg&&FLAVORS[reg.id].highland)pid='forest';   // Andean slopes: highland music, not rainforest
+  return compose(pid,reg)}
 const key=()=>mood;
 
 /* ---------- audio core ---------- */
@@ -580,7 +606,12 @@ const LIGHT={saz:(m,w,v)=>pluckNote(pluckBuf(m,0.6,0.994),w,v,{lp:3500,decay:0.4
   bouzouki:(m,w,v)=>pluckNote(pluckBuf(m,0.7,0.994),w,v,{lp:4200,decay:0.35,rev:0.4}),
   qanun:(m,w,v)=>pluckNote(pluckBuf(m,0.55,0.995),w,v,{lp:4200,decay:0.5,rev:0.5})};
 function tremolo(fn,light,m,w,len,v){fn(m,w,v);const st=LITE?0.1:0.08;for(let t=st;t<len;t+=st)light(m,w+t,v*(0.55+Math.random()*0.25))}
-const PLUCK={harp,koto,guzheng,qanun,saz,guitar,kalimba,sitar:(m,w,v)=>sitar(m,w,v),bouzouki};
+function charango(m,w,v){pluckNote(pluckBuf(m+12,0.75,0.993),w,v,{lp:5200,decay:0.6,rev:0.35});pluckNote(pluckBuf(m+24,0.75,0.993),w,v*0.3,{lp:6000,decay:0.4,rate:1.003,rev:0.35})}
+const dombra=(m,w,v)=>pluckNote(pluckBuf(m,0.6,0.993),w,v,{lp:3200,decay:0.55,rate0:1.015,rev:0.3});
+const quena=(m,w,l,v)=>flute(m,w,l,v,7,1.4,-30);
+const whistle=(m,w,l,v)=>flute(m+12,w,l,v*0.8,6,0.6,-20);
+function strum(fn,ch,base,w,v,gap=0.012){ch.forEach((iv,i)=>fn(base+iv,w+i*gap,v*(i===0?1:0.8)))}
+const PLUCK={harp,koto,guzheng,qanun,saz,guitar,kalimba,sitar:(m,w,v)=>sitar(m,w,v),bouzouki,charango,dombra};
 
 /* ---------- pads ---------- */
 function strings(ch,when,len,vol){
@@ -605,6 +636,17 @@ function didgeridoo(when,len){
   o.type='sawtooth';o.frequency.value=mtof(key().root-24);bp.type='bandpass';bp.Q.value=4;bp.frequency.value=500;
   l.frequency.value=0.45;lg.gain.value=260;l.connect(lg).connect(kr(bp.frequency));
   o.connect(bp).connect(g);env(g,when,0.16,0.3,len,0.6);send(g,0.3);o.start(when);l.start(when);o.stop(when+len+0.7);l.stop(when+len+0.7)}
+function pipes(when,len){   // Celtic pipe drones: tonic in two octaves, reedy
+  const r=key().root,bp=ac.createBiquadFilter(),lp=ac.createBiquadFilter(),g=ac.createGain();bp.type='bandpass';bp.frequency.value=900;bp.Q.value=1.2;lp.type='lowpass';lp.frequency.value=2500;
+  [[r-24,-3],[r-12,3]].forEach(([m,dt])=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m);o.detune.value=dt;o.connect(bp);o.start(when);o.stop(when+len+0.6)});
+  bp.connect(lp).connect(g);env(g,when,0.05,0.4,len,0.5);send(g,0.45)}
+function throat(when,len){   // overtone singing: low voice plus a slowly moving whistle of overtones
+  const r=key().root,o=ac.createOscillator(),f1=ac.createBiquadFilter(),f2=ac.createBiquadFilter(),g=ac.createGain(),l=ac.createOscillator(),lg=ac.createGain();
+  o.type='sawtooth';o.frequency.value=mtof(r-24);f1.type='bandpass';f1.frequency.value=520;f1.Q.value=5;f2.type='bandpass';f2.frequency.value=1500;f2.Q.value=14;
+  l.frequency.value=0.22;lg.gain.value=420;l.connect(lg).connect(kr(f2.frequency));
+  const m1=ac.createGain(),m2=ac.createGain();m1.gain.value=1;m2.gain.value=2.2;o.connect(f1).connect(m1).connect(g);o.connect(f2).connect(m2).connect(g);
+  env(g,when,0.06,0.5,len,0.6);send(g,0.5);o.start(when);l.start(when);o.stop(when+len+0.7);l.stop(when+len+0.7)}
+const PADX={didgeridoo,pipes,throat};
 function bass(midi,when,len,vol){
   const f=ac.createBiquadFilter(),g=ac.createGain();f.type='lowpass';f.frequency.value=420;
   [-5,5].forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=mtof(midi);o.detune.value=dt;o.connect(f);o.start(when);o.stop(when+len+0.6)});
@@ -656,6 +698,13 @@ function percussion(kit,beat,when,dur,e){
     case'tribal':if(beat===0||beat===3||beat===6)drumHit(110,60,when,0.42,0.4);if(beat===2||beat===5)drumHit(220,140,when,0.2,0.18);if(beat%2)noiseHit(when,'highpass',6000,1,0.03,0.04);break;
     case'kit':if(beat===0||beat===3||beat===5)drumHit(120,45,when,0.45,0.3,0.05);if(beat===2||beat===6){noiseHit(when,'bandpass',1800,0.8,0.12,0.15,0.2);drumHit(220,180,when,0.08,0.1)}
       noiseHit(when,'highpass',8000,1,beat%2?0.03:0.02,0.04,0.05);noiseHit(when+dur/2,'highpass',8000,1,0.015,0.03,0.05);break;
+    case'bombo':if(beat===0||beat===3||beat===6)drumHit(82,55,when,beat?0.32:0.42,0.45,0.2);if(beat!==0&&beat!==3&&beat!==6)noiseHit(when,'highpass',5000,1,0.028,0.08,0.2);break;
+    case'samba':if(beat===4)drumHit(68,48,when,0.42,0.55,0.15);if(beat===0)drumHit(72,50,when,0.22,0.4,0.15);
+      if([1,3,6,7].includes(beat))tone('sine',1650,when,0.05+e*0.03,0.05,0.15);
+      noiseHit(when,'highpass',6500,1,0.02,0.04,0.1);noiseHit(when+dur/2,'highpass',6500,1,0.014,0.03,0.1);
+      if(beat===0)tone('sine',880,when,0.035,0.2,0.3);if(beat===3)tone('sine',660,when,0.035,0.2,0.3);break;
+    case'bodhran':{const a=[0.4,0,0,0.22,0.3,0,0.22,0][beat];if(a){drumHit(84,58,when,a,0.4,0.2);noiseHit(when,'bandpass',900,1,a*0.15,0.08,0.2)}break}
+    case'gallop':{const a=[0.42,0.2,0.3,0,0.42,0.2,0.3,0][beat];if(a)drumHit(105,62,when,a,0.25,0.15);if(beat===2||beat===6)noiseHit(when,'bandpass',2200,1.5,0.04,0.05,0.2);break}
     case'softkit':if(beat===0||beat===5)drumHit(100,45,when,0.35,0.35,0.1);if(beat===4)noiseHit(when,'bandpass',1500,0.7,0.08,0.2,0.4);if(beat%2)noiseHit(when,'highpass',7000,1,0.02,0.05,0.2);break}}
 
 /* ---------- soundscapes ---------- */
@@ -735,7 +784,11 @@ function ostinato(o,beat,when,dur,e,ch){
     case'spiccato':spiccato(r-12+ch[0]+SPIC[beat],when,0.07+e*0.03);break;
     case'spiccatoSoft':if(beat%2===0)spiccato(r-12+ch[0]+SPIC[beat],when,0.04);break;
     case'celesta':if(beat%2===0)celesta(r+12+ct,when,0.1+e*0.05);break;
-    case'celestaSparse':if(beat%4===0)celesta(r+12+ct,when,0.09);break}}
+    case'celestaSparse':if(beat%4===0)celesta(r+12+ct,when,0.09);break;
+    case'charango':if([0,2,3,4,6,7].includes(beat))strum(charango,ch.slice(0,3),r-12,when,(beat%4===0?0.2:0.13)+e*0.06);break;
+    case'bossa':if(beat===0||beat===3||beat===5)strum(guitar,ch,r-12,when,0.16+e*0.06,0.01);break;
+    case'vihuela':strum(guitar,ch.slice(0,3),r-12+(beat%2?12:0),when,(beat%3===0?0.2:0.12)+e*0.06,0.008);break;
+    case'dombra':dombra(snapScale(r-12+ch[0]+[0,0,7,0,0,7,12,7][beat]),when,(beat%3===2?0.3:0.2)+e*0.08);break}}
 function playLead(voice,m,t,len,vol,e,from,noteLen,bright){
   switch(voice){
     case'celesta':celesta(m+12,t,0.24);break;
@@ -752,6 +805,12 @@ function playLead(voice,m,t,len,vol,e,from,noteLen,bright){
     case'brass':brass(m,t,len,0.06+e*0.05);break;
     case'erhu':erhu(m,t,len,vol,from);break;
     case'koto':koto(m,t,0.45+e*0.1);break;
+    case'quena':quena(m,t,len,vol*1.7);break;
+    case'whistle':whistle(m,t,len,vol*1.6);break;
+    case'charango':charango(m,t,0.35+e*0.1);break;
+    case'dombra':dombra(m,t,0.42+e*0.1);break;
+    case'guitar':guitar(m,t,0.42+e*0.1);break;
+    case'harp':harp(m,t,0.35+e*0.08);break;
     case'guzheng':guzheng(m,t,0.4+e*0.1);break;
     case'sitar':sitar(m,t,0.4+e*0.1,from);break;
     case'saz':noteLen>=1.5?tremolo(saz,LIGHT.saz,m,t,len*0.9,0.28+e*0.08):saz(m,t,0.38+e*0.1);break;
@@ -811,7 +870,7 @@ function scheduleStep(when){
     chord=k.prog[bars%4];energy=barEnergy(step);
     const next=barEnergy((step+8)%STEPS),len=dur*8,name=chordName(chord);
     playPad(k.pad,chord,when,len,energy);
-    if(k.padExtra==='didgeridoo')didgeridoo(when,len);
+    if(k.padExtra&&PADX[k.padExtra])PADX[k.padExtra](when,len);
     if(!intro&&k.bass&&energy>0.25)bass(r-24+chord[0],when,dur*3.6,0.16);
     if(!intro&&k.brass&&energy>0.55&&bars%2===0)brass(r-12+chord[0],when,dur*3,0.07+energy*0.04);
     if(perc&&!intro&&k.perc==='timpani'&&energy>0.45)timpani(r-24+chord[0],when,0.45);

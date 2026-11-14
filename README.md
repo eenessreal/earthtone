@@ -35,6 +35,11 @@ Each view is heard in two layers.
 | India | Raag Khamaj | Sitar with meend, bansuri, tanpura drone, tabla |
 | Sub-Saharan Africa | Major pentatonic | Kalimba, djembe |
 | Australia | (landscape's own) | Didgeridoo, clapsticks |
+| Andes | Minor pentatonic | Quena, pan flute, charango, bombo |
+| Brazil (coast and cities) | Major with 7th chords | Bossa nova guitar, flute, samba percussion |
+| Celtic isles | D Mixolydian | Tin whistle, fiddle, harp, bodhrán, pipe drones |
+| Mexico | Major | Mariachi trumpets, violins, vihuela |
+| Central Asian steppe | Minor pentatonic | Dombra, galloping rhythm, overtone singing, bowed fiddle |
 | Elsewhere | (landscape's own) | Western orchestra |
 
 When the map moves into a different kind of place, the music changes piece at the next bar with a cymbal and timpani (or gong) transition.
