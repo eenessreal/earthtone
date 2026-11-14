@@ -8,20 +8,36 @@ Built for the **NASA Space Apps Challenge 2026**, challenge *The Earth Informati
 
 ## How it works
 
-First, the whole view is read as one scene, and each kind of place gets **its own piece**: its own key and mode, tempo, rhythm of the tune, lead instruments, accompaniment figure, percussion and a live synthesized soundscape.
+Each view is heard in two layers.
 
-| Scene | Piece |
+**1. The landscape picks the piece.** The whole view is read as one scene. Each kind of scene has its own tempo, rhythm of the tune, accompaniment figure, pad and a live synthesized soundscape.
+
+| Scene | Piece and soundscape |
 |---|---|
-| Mostly ocean | *Open ocean*: slow, D Lydian, flute lead, rolling harp, choir; surf and gulls |
-| Mostly bare land | *Desert of the pharaohs*: E Hijaz (Phrygian dominant), oud ostinato, ney flute with grace notes, drone, darbuka and sistrum; desert wind |
-| Vegetation in the tropics | *Rainforest*: E minor pentatonic, marimba ostinato, pan flute, tribal drums; insects, frogs, exotic birds, rain |
-| Vegetation elsewhere | *Green lands*: G major, pizzicato strings, violins, horns, timpani; birdsong and a stream |
-| Mostly cloud or ice | *Ice and cloud*: A Dorian, glass harmonica, celesta, choir; cold wind and cracking ice |
-| Grey built-up areas (daily MODIS layer) | *City*: F minor, driving spiccato strings, brass, drum kit; traffic, crowd murmur, horns, sirens |
-| Night lights layer | *City lights* (lit cities) or *Night* (dark areas) |
-| Mixed land and sea | *Coast*: C Mixolydian, harp; light surf and gulls |
+| Mostly ocean | *Open ocean*: slow, rolling harp, choir; surf and gulls |
+| Land and sea | *Coast*: harp, light timpani; light surf and gulls |
+| Bare land, no sea | *Desert*: oud, ney with grace notes, soft drone, frame drum; desert wind |
+| Vegetation in the tropics | *Rainforest*: marimba, pan flute, tribal drums; insects, frogs, exotic birds, rain |
+| Vegetation elsewhere | *Green lands*: pizzicato strings, violins, horns; birdsong and a stream |
+| Cloud or ice | *Ice and cloud*: glass harmonica, celesta, choir; cold wind, cracking ice |
+| Grey built-up areas (daily MODIS layer) | *City*: driving strings, brass, drum kit; traffic, crowd murmur, horns, sirens |
+| Night lights layer | *City lights* or *Night*; crickets in the dark |
 
-When the map moves into a different kind of place, the music changes piece at the next bar with a cymbal and timpani transition.
+**2. The location picks the local sound.** The map centre decides the scale and the instruments, so the same kind of landscape sounds different around the world.
+
+| Region | Scale | Instruments and local details |
+|---|---|---|
+| Egypt, Sahara & Arabia | Double harmonic | Qanun, ney, strings in unison, frame drum, finger cymbals |
+| Anatolia (incl. Istanbul) | Makam Hicaz | Bağlama, ney, soft darbuka; Bosphorus ferry horns and gulls in the city |
+| Aegean | Kürdi | Bouzouki tremolo, kaval, guitar, def |
+| Japan | In (miyako-bushi) | Koto, shakuhachi, taiko; temple bells, Tokyo crossing signals |
+| China & Southeast Asia | Gong pentatonic | Guzheng with glissandi, erhu, dizi, gongs, woodblocks |
+| India | Raag Khamaj | Sitar with meend, bansuri, tanpura drone, tabla |
+| Sub-Saharan Africa | Major pentatonic | Kalimba, djembe |
+| Australia | (landscape's own) | Didgeridoo, clapsticks |
+| Elsewhere | (landscape's own) | Western orchestra |
+
+When the map moves into a different kind of place, the music changes piece at the next bar with a cymbal and timpani (or gong) transition.
 
 Then a playhead sweeps across the current map view from left to right. The view is split into 48 vertical bands, and each band becomes one eighth note.
 
