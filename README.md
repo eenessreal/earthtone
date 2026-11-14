@@ -51,6 +51,14 @@ Then a playhead sweeps across the current map view from left to right. The view 
 
 Underneath, a string section plays the mood's chord progression (for example E–F–E–D in Desert, Dmaj7–E–Dmaj7–A in Ocean). Melody notes on strong beats snap to the current chord, and large jumps are folded back by an octave, so any landscape is heard as a tune rather than noise.
 
+## Features
+
+- **World tour**: one tap flies the map through deserts, coasts, cities at night, rainforests, the open ocean and ice, and the music changes piece at every stop.
+- **Explore by touch**: drag a finger (or use the arrow keys) over the view to hear the spot underneath. Each surface has its own instrument and brighter places sound higher, so people who cannot see the image can still explore Earth by ear. A live text line announces the surface for screen readers.
+- **Share this place**: the link keeps the exact view, layer and date (`#lat,lng,zoom,layer[,date]`).
+- **My location**: flies to where you are, so you can hear your own region.
+- **Save 30 s clip**: renders the current view offline at full quality and returns a WAV file.
+
 ## Listening on a phone
 
 - Notes are scheduled about 0.3 s ahead on the audio clock, so a busy device does not break the rhythm.
