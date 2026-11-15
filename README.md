@@ -4,6 +4,8 @@
 
 Live demo: https://eenessreal.github.io/earthtone/
 
+Demo video (30 s): https://youtube.com/shorts/PzwtQpLo8Ws
+
 Built for the **NASA Space Apps Challenge 2026**, challenge *The Earth Information Jukebox*, by team **Earthtone**.
 
 ## How it works
